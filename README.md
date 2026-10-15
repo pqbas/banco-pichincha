@@ -1,166 +1,202 @@
-# Arquitectura
+<h1 align="center">Onboarding multiagente</h1>
 
-- 1 UI
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.13-blue" alt="Python 3.13"/>
+  <img src="https://img.shields.io/badge/LangGraph-1.2-1C3C3C" alt="LangGraph"/>
+  <img src="https://img.shields.io/badge/FastAPI-009688" alt="FastAPI"/>
+  <img src="https://img.shields.io/badge/Claude-Haiku%205.5-D97757" alt="Claude Haiku 5.5"/>
+  <img src="https://img.shields.io/badge/Langfuse-trazas-0A60FF" alt="Langfuse"/>
+  <img src="https://img.shields.io/badge/AWS-CDK-FF9900" alt="AWS CDK"/>
+</p>
 
-- 1 db para registrar los onboardings en dynamodb
+<p align="center">
+  Abrir una cuenta exige verificar identidad, revisar listas de riesgo y aplicar las políticas del banco.<br/>
+  Hecho a mano toma horas; hecho solo por un LLM, nadie puede auditarlo.<br/><br/>
+  <strong>Agentes que hacen el trabajo en segundos, con los controles en el código y cada paso trazado.</strong>
+</p>
 
-- Lambda con langgraph para implmentar flujo multi agentico:
-  - Agente orquestador
-    - controla las tools de cada sub agente
-    - manejar el estado entre pasos
-    - mitigar incertidumbre
+---
 
-  - Agente verificar identidad
-  - Agente consulas de listas de riesgo
-  - Agente consulta de politicas
-  - Generación de respuestas al cliente
-
-- Tools:
-  - Tool 1 (mockear): verify_identity(document_id) Retorna {"verified":
-    true/false, "confidence": 0.0-1.0}. Si confianza < 0.8, requiere
-    escalamiento
-
-  - Tool 2 (mockear) check_risk_lists(name, document_id) Retorna {"risk_level":
-    "low/medium/high", "matches": []}. Si high, requiere escalamiento
-
-  - Tool 3 (mockear) prepare_documentation(product, client_data) Retorna
-    documentos requeridos
-
-## 1. Caso
-
-- Objetivo
-  - Onboarding de clientes
-
-- Usuarios
-  - Clientes del banco
-
-- Riesgos
-  - Fraude, prompt injection, PII, un agente podría usar una tool no permitida
-
-- Valor (cómo se mide)
-  - Reducir el tiempo de onboarding
-
-## 2. API
-
-- Método y ruta (ejemplo `POST /<recurso>/<accion>`)
-
-  - POST /api/v1/onboarding/start recibe {"prospect_name": "Juan Perez",
-    "document_id": "1712345678", "product": "cuenta_ahorros"}
-
-- Entrada, campo, tipo y validación de cada uno
-
-- Salida, campo, tipo y significado de cada uno
-- Errores, status y cuándo (ejemplo 404 si el recurso no existe)
-
-## 3. Fuentes de datos --> API Externa, se mockea
-
-- Qué datos se consultan, de dónde salen y con qué clave (ejemplo registros del
-  usuario por su id de sesión)
-- Qué documentos van al retrieval y cuántos se recuperan (k)
-  - Las politicas del banco
-  - 5 politicas
-
-- Qué identifica al usuario o cliente, y de dónde sale (nunca del LLM)
-  - DNI
-  - Nombre
-
-## 4. Workflow
-
-- Pasos en orden, indicando cuáles son código y cuál es la llamada al LLM
-
-  - Agente orquestador recibe el json inicial e inicia cada sub agente con
-    información necesaria para su caso de uso especifico
-  - Agente de verificación de identidad ejecuta tool 1 (verify identity)
-  - Agente de consultas de riesgo ejecuta tool 2 (risk list)
-  - Agente de consutlas de politicas ejecuta tool 3 (get_policy)
-  - Agente orquestador recibe y genera una respuesta
-
-## 5. Validaciones y guardrails
-
-- Qué se valida de la salida del LLM contra el contexto entregado
-- Cuándo se marca para revisión humana
-- PII que se enmascara
-
-## 6. Evaluación
-
-La evaluación llama al endpoint por HTTP, así sirve igual en local que desplegado.
+## Quick Start
 
 ```bash
-make run                                    # API en otra terminal
-make eval                                   # una pasada sobre eval/golden.jsonl
-make eval REPETICIONES=3                    # consistencia entre repeticiones
-make eval EVAL_ENDPOINT=https://<api>/api/v1/onboarding/start
+make install                 # uv sync con los grupos dev y eval
+cp .env.example .env         # pon tu ANTHROPIC_API_KEY, o LLM_PROVIDER=mock sin red
+make run                     # API en localhost:8000, front en /ui
 ```
 
-- Archivos
-  - `eval/golden.jsonl`, un caso por línea con la entrada y lo esperado
-  - `eval/config.json`, endpoint y rutas a los campos de la respuesta
-  - `eval/evaluar.py`, evaluador (scikit-learn y Ragas, Claude Haiku 5.5 como juez)
-  - `eval/resultados/`, un JSON por corrida, no se versiona
+Inicia un onboarding:
 
-- Campo de la salida que es la clase o decisión, y sus valores
-  - `decision`: `aprobado` o `revision_humana`, y `error_422` cuando la validación rechaza la entrada
-  - Clase crítica `revision_humana`: aprobar a quien debía ir a revisión es el error más caro
-    (fraude, listas restrictivas)
+```bash
+curl -X POST localhost:8000/api/v1/onboarding/start \
+  -H 'content-type: application/json' \
+  -d '{"prospect_name": "Juan Perez", "document_id": "1712345678", "product": "cuenta_ahorros"}'
+```
 
-- Campo con los ids citados y campo con los ids recuperados
-  - Recuperados: `retrieved_policy_ids` (k = 5)
-  - Citados: `policies[].id`
-  - Esperados en el golden: `politicas_esperadas`, los citados deben cubrirlos
+Eso es todo. Con `LLM_PROVIDER=mock` el flujo corre completo con respuestas fijas, sin costo.
 
-- Campo con la justificación o respuesta en texto, para faithfulness
-  - `answer`, el mensaje al cliente
-  - Contexto para el juez: `decision`, `policies[].texto` y `required_documents`
+## Ejemplo
 
-- Casos que el golden dataset tiene que cubrir (19)
+> Un prospecto con identidad verificada y sin coincidencias en listas, con Claude Haiku 5.5.
 
-| Camino | Casos | Esperado |
-|---|---|---|
-| Camino feliz, un caso por producto | `feliz_ahorros`, `feliz_corriente`, `feliz_tarjeta`, `feliz_consumo` | aprobado |
-| Identidad con confianza < 0.8, no verificada o inexistente | `confianza_baja`, `no_verificado`, `documento_desconocido` | revision_humana |
-| OFAC por documento (riesgo alto) | `ofac_documento`, `ofac_consumo` | revision_humana |
-| PEP y homónimo en lista ONU (riesgo medio) | `pep`, `pep_normalizacion`, `homonimo_onu` | aprobado, con documentos de debida diligencia |
-| Servicios externos caídos | `servicio_caido` | revision_humana |
-| Prompt injection en el nombre | `injection_ofac`, `injection_no_verificado`, `injection_simbolos` | la decisión no cambia, o 422 |
-| Nombre que contradice al titular del documento | `nombre_contradice_documento` | revision_humana |
-| Entrada inválida | `documento_invalido`, `producto_invalido` | 422 |
+```jsonc
+{
+  "decision": "aprobado",
+  "review_reasons": [],
+  "identity": {"verified": true, "confidence": 0.95},
+  "risk": {"risk_level": "low", "matches": []},
+  "policies": [{"id": "POL-01", "titulo": "Conozca a su cliente (KYC)", "texto": "..."}, ...],
+  "required_documents": ["Cédula de identidad vigente", "Planilla de servicio básico (máximo 3 meses)"],
+  "answer": "Hola Juan, nos complace informarle que su solicitud de cuenta de ahorros ha sido aprobada...",
+  "trace": [{"agente": "identidad", "tool": "verify_identity", "resultado": "verified=True confidence=0.95"}, ...],
+  "trace_id": "9b23b38ce5e0fe3acfbbcc6cb6fbd249",
+  "uso": {"tokens_entrada": 2826, "tokens_salida": 465}
+}
+```
 
-- Métricas
-  - Decisión: accuracy, F1 macro, matriz de confusión y recall de `revision_humana`
-  - Retrieval: `IDBasedContextPrecision` y `IDBasedContextRecall` de Ragas; con k = 5 y dos
-    políticas esperadas, la precision máxima es 0.4
-  - Citas: si los citados cubren los esperados, y si son exactos (sin citar de más)
-  - Respuesta: `Faithfulness` de Ragas sobre `answer`
-  - Operación: latencia p50 y p95, tokens y costo por request
+Si la confianza de identidad baja de 0.8, hay riesgo alto o algo no cuadra, la decisión pasa a
+`revision_humana` con el motivo, y el cliente recibe un mensaje neutro.
 
-### Resultados (15-10-2026, 1 repetición, `claude-haiku-5-5`)
+## Cómo funciona
+
+Un orquestador en LangGraph recorre los agentes en orden fijo, a cada uno le pasa solo lo que
+necesita y aplica las reglas de escalamiento. **El código decide; el LLM solo elige qué políticas
+aplican y redacta el mensaje.**
+
+```mermaid
+flowchart LR
+    API[POST /onboarding/start] --> O{Orquestador}
+    O --> I[Identidad] --> T1([verify_identity])
+    O --> R[Riesgo] --> T2([check_risk_lists])
+    O --> P[Políticas] --> T3([search_policies]) & T4([prepare_documentation])
+    P --> L1[[LLM: elige políticas]]
+    O --> M[Respuesta] --> L2[[LLM: mensaje al cliente]]
+    O --> D{{Decisión en código}}
+    D --> DB[(DynamoDB)]
+```
+
+| Agente | Tools permitidas | LLM | Produce |
+| --- | --- | --- | --- |
+| `identidad` | `verify_identity` | no | `verified`, `confidence` |
+| `riesgo` | `check_risk_lists` | no | `risk_level`, `matches` |
+| `politicas` | `search_policies` (BM25, k = 5), `prepare_documentation` | sí | políticas citadas, requisitos, documentos |
+| `respuesta` | ninguna | sí | mensaje al cliente |
+
+Los controles que no dependen del modelo:
+
+| Riesgo | Control |
+| --- | --- |
+| Agente usa una tool ajena | lista de tools por agente, cualquier otra se rechaza |
+| Prompt injection | el nombre solo acepta letras y nunca llega al LLM |
+| PII | el LLM no recibe nombre ni cédula; la base y los logs guardan un hash |
+| Alucinación | las políticas citadas deben estar entre las recuperadas |
+| Revelar listas al cliente | el mensaje no puede mencionar listas, sanciones ni PEP |
+| Servicio externo caído | un reintento y, si falla, revisión humana en vez de error |
+
+```
+app/
+├── main.py  schemas.py  store.py  lambda_handler.py
+├── routers/onboarding.py     ← solo HTTP
+├── agent/                    ← sin FastAPI, se prueba y evalúa solo
+│   ├── workflow.py           ← grafo de LangGraph
+│   ├── tools.py              ← tools y permisos por agente
+│   ├── guardrails.py         ← escalamiento y validación de salida
+│   └── prompts.py
+└── services/                 ← sin dominio: llm, retrieval, pii, observabilidad
+```
+
+## API
+
+| Método | Ruta | Qué hace |
+| --- | --- | --- |
+| `POST` | `/api/v1/onboarding/start` | Corre el flujo y devuelve decisión, evidencia y traza |
+| `GET` | `/api/v1/onboarding/{id}` | Registro guardado, sin PII (404 si no existe) |
+| `GET` | `/health` | Estado del servicio |
+
+Entrada inválida responde 422: nombre con símbolos, cédula que no tiene 10 dígitos o producto
+fuera de `cuenta_ahorros`, `cuenta_corriente`, `tarjeta_credito` y `credito_consumo`.
+
+## Observabilidad
+
+Cada onboarding es una traza en [Langfuse](https://langfuse.com) con una observación por agente,
+tool, guardrail y llamada al LLM, con su entrada, salida y tokens. Todo pasa por un filtro de
+PII antes de salir.
+
+```
+onboarding                      ← traza, session_id = onboarding_id
+├── orquestador                 ← chain
+├── identidad                   ← agent
+│   └── verify_identity         ← tool
+├── riesgo
+│   └── check_risk_lists
+├── orquestador
+│   └── escalamiento            ← guardrail, WARNING si escala
+├── politicas
+│   ├── search_policies
+│   ├── prepare_documentation
+│   ├── llm:SeleccionPoliticas  ← generation
+│   └── validar_seleccion
+└── respuesta
+    ├── llm:MensajeCliente
+    └── validar_mensaje
+```
+
+Se activa con `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` y `LANGFUSE_BASE_URL` en `.env`;
+sin ellas no se envía nada y la app corre igual.
+
+## Evaluación
+
+19 casos en `eval/golden.jsonl`: caminos felices, identidad dudosa, OFAC, PEP, homónimos,
+servicios caídos, prompt injection y entradas inválidas.
+
+```bash
+make eval                     # con la API corriendo
+make eval REPETICIONES=3      # consistencia entre corridas
+```
 
 | Métrica | Valor |
-|---|---|
-| Accuracy de la decisión | 0.89 (17 de 19) |
-| F1 macro | 0.92 |
+| --- | --- |
+| Accuracy de la decisión | 0.89 |
 | Recall de `revision_humana` | 0.89 |
-| Context recall / precision | 0.97 / 0.39 (máximo 0.4) |
-| Citados cubren los esperados / exactos | 0.94 / 0.00 |
+| Context recall | 0.97 |
 | Faithfulness | 0.30 |
-| Latencia p50 / p95 | 4.6 s / 8.4 s |
-| Costo | 0.0098 USD por 19 requests (~0.0006 USD por onboarding) |
+| Costo por onboarding | ~0.0006 USD |
 
-- Casos que fallan
-  - `nombre_contradice_documento` sale aprobado: `verify_identity` solo recibe el documento y
-    nada compara el nombre con el titular. Es un hueco del diseño, no del modelo; es el único
-    error de la clase crítica
-  - `pep_normalizacion` sale en revisión: el mensaje del LLM mencionó algo de las
-    verificaciones, el guardrail anti tipping-off lo bloqueó y escaló. Causa en la generación;
-    el control funcionó, pero el prompt de respuesta deja pasar esa mención
-- Hallazgos
-  - Citados exactos en 0: el agente de políticas siempre cita una política más de las esperadas
-    (por ejemplo POL-02 en los caminos felices)
-  - Faithfulness baja (0.30): el juez solo recibe las políticas citadas, la decisión y los
-    documentos, no los requisitos ni el mensaje fijo de revisión. Falta separar cuánto es de la
-    generación y cuánto del contexto que se le da al juez
-- Reporte completo: `eval/resultados/eval_20261015_122058.json`
+Detalle, casos que fallan y su causa en [docs/evaluacion.md](./docs/evaluacion.md).
 
-## 7. Front
+## Despliegue en AWS
 
-- Qué ve el usuario como evidencia (textos citados, tablas, filas resaltadas)
+```mermaid
+flowchart LR
+    U[Analista] --> S3[Front en S3]
+    S3 --> GW[API Gateway]
+    GW --> L[Lambda<br/>FastAPI + LangGraph]
+    L --> DB[(DynamoDB)]
+    L --> SM[Secrets Manager]
+    L --> C[Claude API]
+    L --> LF[Langfuse]
+```
+
+```bash
+make deploy                   # build de la Lambda, CDK y carga de secretos desde .env
+make deploy-cdn               # igual, con CloudFront para HTTPS
+make destroy                  # borra el stack
+```
+
+Todo el stack se configura en `infra/config.json`. La primera vez por cuenta y región:
+`cd infra && npx -y aws-cdk@2.1145.0 bootstrap`.
+
+## Comandos
+
+```bash
+make install                  # dependencias
+make test                     # tests
+make run                      # API local, front en /ui
+make eval                     # evaluación
+make deploy                   # despliegue en AWS
+```
+
+## Documentación
+
+- [docs/diseno.md](./docs/diseno.md), diseño original del caso
+- [docs/evaluacion.md](./docs/evaluacion.md), golden dataset, métricas y resultados
