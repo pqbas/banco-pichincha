@@ -63,6 +63,20 @@ Un orquestador en LangGraph recorre los agentes en orden fijo, a cada uno le pas
 necesita y aplica las reglas de escalamiento. **El código decide; el LLM solo elige qué políticas
 aplican y redacta el mensaje.**
 
+### Qué es un agente aquí
+
+Un agente es un nodo del grafo de LangGraph con una sola responsabilidad. Cumple tres reglas:
+
+- **Tools propias:** solo puede usar las suyas (`PERMISOS` en `app/agent/tools.py`), y cualquier
+  otra se rechaza y queda registrada como error.
+- **Contexto mínimo:** lee del estado compartido solo lo que su tarea necesita y devuelve su
+  resultado a ese estado. Los agentes no se llaman entre sí; el orquestador decide quién sigue.
+- **LLM solo con juicio:** `identidad` y `riesgo` ejecutan su tool y aplican reglas sin LLM.
+  `politicas` y `respuesta` usan Claude con salida estructurada, y esa salida se valida antes de
+  usarse.
+
+El orquestador no es un LLM: es código que fija el orden, así ningún control se puede saltar.
+
 ```mermaid
 flowchart LR
     API[POST /onboarding/start] --> O{Orquestador}
