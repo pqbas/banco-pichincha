@@ -1,0 +1,15 @@
+{
+  "endpoint": "http://localhost:8000/api/v1/onboarding/start",
+  "entrada": ["prospect_name", "document_id", "product"],
+  "clase": {"respuesta": "decision", "golden": "decision_esperada", "critica": "revision_humana"},
+  "ids": {"recuperados": "retrieved_policy_ids", "citados": "policies[].id", "golden": "politicas_esperadas"},
+  "faithfulness": {
+    "pregunta": "product",
+    "respuesta": "answer",
+    "contextos": ["decision", "policies[].texto", "required_documents[]"]
+  },
+  "uso": {"entrada": "uso.tokens_entrada", "salida": "uso.tokens_salida"},
+  "precio_usd_por_millon": {"entrada": 0.10, "salida": 0.50},
+  "juez": "claude-haiku-5-5",
+  "concurrencia_juez": 4
+}

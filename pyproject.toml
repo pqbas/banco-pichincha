@@ -1,0 +1,26 @@
+[project]
+name = "banco-pichincha"
+version = "0.1.0"
+description = "Servicio GenAI"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi",
+    "pydantic",
+    "python-dotenv",
+    "anthropic",
+    "boto3",
+    "rank-bm25",
+    "mangum",
+    "langgraph>=1.2.15",
+    "langfuse>=5.0.1",
+]
+
+[dependency-groups]
+dev = ["pytest", "httpx", "uvicorn"]
+eval = ["ragas==0.4.3", "langchain-community<0.4", "scikit-learn", "pandas", "httpx"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

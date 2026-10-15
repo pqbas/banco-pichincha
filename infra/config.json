@@ -1,0 +1,23 @@
+{
+  "stack": "OnboardingStack",
+  "region": "us-east-1",
+  "env": {
+    "LLM_PROVIDER": "anthropic",
+    "ANTHROPIC_MODEL": "claude-haiku-5-5",
+    "BEDROCK_MODEL": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "LANGFUSE_BASE_URL": "https://us.cloud.langfuse.com",
+    "LANGFUSE_TRACING_ENVIRONMENT": "dev"
+  },
+  "secretos": {
+    "ANTHROPIC_API_KEY": "onboarding/anthropic-api-key",
+    "LANGFUSE_PUBLIC_KEY": "onboarding/langfuse-public-key",
+    "LANGFUSE_SECRET_KEY": "onboarding/langfuse-secret-key"
+  },
+  "tablas": {
+    "ONBOARDING_TABLE": "onboarding_id"
+  },
+  "frontend": "../frontend",
+  "memoria_mb": 1024,
+  "timeout_s": 29,
+  "throttle_rps": 5
+}

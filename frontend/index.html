@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onboarding de clientes</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --soft: #f9fafb; --text: #1b2230; --muted: #667085; --border: #e2e5ea; --strong: #cfd4dc;
+    --accent: #2563eb; --accent-hover: #1d4ed8; --accent-soft: #eef4ff;
+    --ok: #157f3d; --ok-bg: #ecfaf1; --no: #b42318; --no-bg: #fef1f0; --warn: #a15c07; --warn-bg: #fff8e6;
+    --alerta: #6941c6; --alerta-bg: #f5f3ff; --info: #175cd3; --info-bg: #eef6ff;
+  }
+  * { box-sizing: border-box; border-radius: 0; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .barra-top { background: var(--card); border-bottom: 1px solid var(--border); }
+  .barra-top div { max-width: 880px; margin: 0 auto; padding: 14px 16px; display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .01em; }
+  .barra-top span { width: 10px; height: 10px; background: var(--accent); }
+  main { max-width: 880px; margin: 0 auto; padding: 28px 16px 56px; }
+  h1 { font-size: 24px; font-weight: 700; margin: 0 0 6px; letter-spacing: -.01em; }
+  .sub { color: var(--muted); margin: 0 0 24px; max-width: 680px; }
+  .card { background: var(--card); border: 1px solid var(--border); padding: 22px; margin-bottom: 20px; }
+  #campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin: 0 0 6px; }
+  select, textarea, input { width: 100%; padding: 10px 12px; border: 1px solid var(--strong); background: var(--card); color: var(--text); font: inherit; }
+  select:focus, textarea:focus, input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  input:user-invalid { border-color: var(--no); }
+  textarea { min-height: 96px; resize: vertical; }
+  .ejemplos { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 18px; }
+  .ejemplos .muted { font-size: 13px; margin-right: 4px; }
+  .ejemplos button { background: var(--soft); border: 1px solid var(--border); color: var(--text); padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ejemplos button.activo { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .ejemplos button:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  .acciones { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 14px; }
+  .primario { background: var(--accent); color: #fff; border: 1px solid var(--accent); padding: 10px 20px; font: inherit; font-weight: 600; cursor: pointer; }
+  .primario:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .primario:disabled { opacity: .6; cursor: wait; }
+  .muted { color: var(--muted); font-size: 14px; }
+  #resultado .card { border-top: 3px solid var(--strong); }
+  #resultado .card.estado-ok { border-top-color: var(--ok); } #resultado .card.estado-no { border-top-color: var(--no); }
+  #resultado .card.estado-warn { border-top-color: var(--warn); } #resultado .card.estado-alerta { border-top-color: var(--alerta); }
+  #resultado .card.estado-info { border-top-color: var(--info); }
+  .cabecera { display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .badge { display: inline-block; padding: 4px 10px; font-weight: 600; font-size: 13px; border: 1px solid currentColor; }
+  .cabecera .badge:first-child { font-size: 15px; padding: 6px 14px; }
+  .c-ok { color: var(--ok); background: var(--ok-bg); } .c-no { color: var(--no); background: var(--no-bg); }
+  .c-alerta { color: var(--alerta); background: var(--alerta-bg); } .c-info { color: var(--info); background: var(--info-bg); }
+  .c-warn { color: var(--warn); background: var(--warn-bg); }
+  .barra { display: inline-flex; align-items: center; gap: 8px; }
+  .barra .fondo { height: 6px; width: 140px; background: var(--border); overflow: hidden; }
+  .barra .fondo div { height: 100%; background: var(--accent); }
+  .aviso { margin-top: 16px; padding: 10px 14px; border-left: 3px solid currentColor; }
+  .seccion { margin-top: 22px; }
+  .seccion h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; }
+  .seccion p { margin: 0; }
+  blockquote { margin: 0 0 8px; padding: 12px 14px; border: 1px solid var(--border); border-left: 3px solid var(--accent); background: var(--soft); }
+  blockquote .titulo { font-weight: 600; margin-bottom: 4px; }
+  details { margin-top: 22px; font-size: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+  summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+  summary:hover { color: var(--accent); }
+  details blockquote { margin-top: 8px; border-left-color: var(--strong); }
+  .tabla { overflow-x: auto; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  th { background: var(--soft); color: var(--muted); font-weight: 600; font-size: 13px; }
+  td.ajustar { white-space: normal; min-width: 220px; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.resaltado td { background: var(--warn-bg); font-weight: 600; }
+  .chip { font-size: 12px; color: var(--warn); border: 1px solid currentColor; padding: 1px 8px; }
+  ul.lista { margin: 0; padding: 0; list-style: none; border: 1px solid var(--border); }
+  ul.lista li { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  ul.lista li:last-child { border-bottom: 0; }
+  pre { background: var(--soft); border: 1px solid var(--border); padding: 12px; overflow-x: auto; font-size: 13px; }
+  .error { color: var(--no); background: var(--no-bg); padding: 12px 14px; border: 1px solid currentColor; border-left-width: 3px; }
+  @media (max-width: 560px) { .card { padding: 16px; } h1 { font-size: 20px; } }
+</style>
+</head>
+<body>
+<header class="barra-top"><div><span></span>Consola del analista</div></header>
+<main>
+  <h1 id="titulo"></h1>
+  <p class="sub" id="descripcion"></p>
+  <form class="card" id="form"><div id="campos"></div><div class="ejemplos" id="ejemplos"></div>
+    <div class="acciones"><button class="primario" id="enviar" type="submit"></button><span class="muted" id="estado"></span></div>
+  </form>
+  <section id="resultado"></section>
+</main>
+<script>
+// Página genérica: el formulario y la vista del resultado se definen en ui.json.
+// config.json (lo genera el deploy) trae api_base; en local se usa la misma URL de origen.
+const $ = (id) => document.getElementById(id);
+function el(tag, attrs = {}, ...hijos) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) k === "style" ? Object.assign(n.style, v) : (n[k] = v);
+  n.append(...hijos.filter((h) => h !== null && h !== undefined && h !== ""));
+  return n;
+}
+const obtener = (o, ruta) => ruta.split(".").reduce((a, k) => (a == null ? a : a[k]), o);
+const formatos = {
+  usd: (v) => Number(v).toLocaleString("es-EC", { style: "currency", currency: "USD" }),
+  porcentaje: (v) => Math.round(v * 100) + "%",
+  texto: (v) => (v == null ? "" : String(v)),
+};
+const fmt = (v, f) => (formatos[f] || formatos.texto)(v);
+const seccion = (titulo, ...hijos) => el("div", { className: "seccion" }, titulo ? el("h2", {}, titulo) : null, ...hijos);
+const cita = (d, b) => el("blockquote", {}, el("div", { className: "titulo" }, [b.id && d[b.id], b.titulo && d[b.titulo]].filter(Boolean).join(" · ")), el("p", {}, d[b.texto]));
+
+const bloques = {
+  badge: (b, r) => { const v = obtener(r, b.campo); if (v == null) return null; const c = (b.valores || {})[v] || {}; return el("span", { className: "badge c-" + (c.color || "info") }, c.texto || v); },
+  barra: (b, r) => { const v = obtener(r, b.campo); if (v == null) return el("span", { className: "muted" }, `${b.etiqueta || b.campo} no disponible`); const f = el("div", { className: "fondo" }, el("div", { style: { width: v * 100 + "%" } })); return el("span", { className: "barra muted" }, `${b.etiqueta || b.campo} ${fmt(v, "porcentaje")}`, f); },
+  alerta: (b, r) => {
+    const valor = obtener(r, b.campo); const activo = Array.isArray(valor) ? valor.length > 0 : Boolean(valor); const detalle = b.detalle ? obtener(r, b.detalle) : null;
+    const texto = activo ? (b.texto_si || b.campo) + (detalle && detalle.length ? ": " + [].concat(detalle).join(", ") : "") : (b.texto_no || "");
+    return texto ? el("div", { className: "aviso " + (activo ? "c-warn" : "c-ok") }, texto) : null;
+  },
+  lista: (b, r) => { const v = [].concat(obtener(r, b.campo) || []); if (!v.length) return b.vacio ? seccion(b.etiqueta, el("p", { className: "muted" }, b.vacio)) : null;
+    return seccion(b.etiqueta, el("ul", { className: "lista" }, ...v.map((x) => el("li", {}, fmt(x, b.formato))))); },
+  texto: (b, r) => seccion(b.etiqueta, el("p", {}, fmt(obtener(r, b.campo), b.formato))),
+  cita: (b, r) => { const d = obtener(r, b.campo); return seccion(b.etiqueta, d ? cita(d, b) : el("div", { className: "error" }, b.vacio || "Sin documento")); },
+  citas: (b, r) => {
+    let lista = obtener(r, b.campo) || [];
+    if (b.excluir) lista = lista.filter((d) => d[b.excluir.clave] !== obtener(r, b.excluir.igual_a));
+    if (!lista.length) return b.vacio ? seccion(b.etiqueta, el("p", { className: "muted" }, b.vacio)) : null;
+    const items = lista.map((d) => cita(d, b));
+    return b.colapsado ? el("details", {}, el("summary", {}, `${b.etiqueta} (${lista.length})`), ...items) : seccion(b.etiqueta, ...items);
+  },
+  tabla: (b, r) => {
+    const filas = obtener(r, b.campo) || [];
+    if (!filas.length && b.vacio) return seccion(b.etiqueta, el("p", { className: "muted" }, b.vacio));
+    const marcados = new Set(b.resaltar ? obtener(r, b.resaltar.en) || [] : []);
+    const num = (c) => ["usd", "numero", "porcentaje"].includes(c.formato);
+    const thead = el("tr", {}, ...b.columnas.map((c) => el("th", { className: num(c) ? "num" : "" }, c.etiqueta || c.campo)), b.resaltar ? el("th") : null);
+    const tbody = filas.map((f) => { const m = b.resaltar && marcados.has(f[b.resaltar.clave]);
+      return el("tr", { className: m ? "resaltado" : "" }, ...b.columnas.map((c) => el("td", { className: num(c) ? "num" : c.ajustar ? "ajustar" : "" }, fmt(f[c.campo], c.formato))),
+        b.resaltar ? el("td", {}, m ? el("span", { className: "chip" }, b.resaltar.etiqueta || "usado") : "") : null); });
+    const titulo = b.resaltar ? `${b.etiqueta} (${marcados.size} ${b.resaltar.etiqueta || "usados"})` : b.etiqueta;
+    return seccion(titulo, el("div", { className: "tabla" }, el("table", {}, el("thead", {}, thead), el("tbody", {}, ...tbody))));
+  },
+  json: (b, r) => el("details", {}, el("summary", {}, b.etiqueta || "Respuesta"), el("pre", {}, JSON.stringify(b.campo ? obtener(r, b.campo) : r, null, 2))),
+};
+
+function mostrar(ui, r) {
+  const cabecera = el("div", { className: "cabecera" }, ...ui.resultado.filter((b) => ["badge", "barra"].includes(b.tipo)).map((b) => bloques[b.tipo](b, r)));
+  const cuerpo = ui.resultado.filter((b) => !["badge", "barra"].includes(b.tipo)).map((b) => (bloques[b.tipo] || bloques.json)(b, r));
+  const primero = ui.resultado.find((b) => b.tipo === "badge");
+  const color = primero ? ((primero.valores || {})[obtener(r, primero.campo)] || {}).color || "info" : "";
+  $("resultado").replaceChildren(el("div", { className: "card" + (color ? " estado-" + color : "") }, cabecera.children.length ? cabecera : null, ...cuerpo));
+}
+
+function campo(c) {
+  const id = "campo-" + c.campo;
+  let control;
+  if (c.tipo === "select") control = el("select", { id }, ...(c.opciones || []).map((o) => el("option", { value: o.valor }, o.texto || o.valor)));
+  else if (c.tipo === "textarea") control = el("textarea", { id, required: true, placeholder: c.placeholder || "" });
+  else control = el("input", { id, type: c.tipo || "text", required: true, placeholder: c.placeholder || "" });
+  if (c.min) control.minLength = c.min;
+  if (c.max) control.maxLength = c.max;
+  return el("div", { className: "campo" }, el("label", { htmlFor: id }, c.etiqueta || c.campo), control);
+}
+
+async function iniciar() {
+  const ui = await (await fetch("ui.json")).json();
+  const cfg = await fetch("config.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  const endpoint = (cfg.api_base || "") + ui.ruta;
+  document.title = ui.titulo;
+  $("titulo").textContent = ui.titulo;
+  $("descripcion").textContent = ui.descripcion || "";
+  $("enviar").textContent = ui.boton || "Enviar";
+  $("campos").append(...ui.formulario.map(campo));
+  // El primer ejemplo queda cargado al abrir la página, listo para enviar
+  const usar = (ej, boton) => {
+    for (const [k, v] of Object.entries(ej)) { const n = $("campo-" + k); if (n) n.value = v; }
+    for (const b of $("ejemplos").querySelectorAll("button")) b.classList.toggle("activo", b === boton);
+  };
+  if ((ui.ejemplos || []).length) $("ejemplos").append(el("span", { className: "muted" }, "Casos de prueba:"));
+  for (const ej of ui.ejemplos || []) {
+    const texto = ej._etiqueta || Object.values(ej).filter((v) => typeof v === "string").sort((a, b) => b.length - a.length)[0] || "Ejemplo";
+    const boton = el("button", { type: "button", title: texto, textContent: texto, onclick: () => usar(ej, boton) });
+    $("ejemplos").append(boton);
+  }
+  if ((ui.ejemplos || []).length) usar(ui.ejemplos[0], $("ejemplos").querySelector("button"));
+  $("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $("enviar").disabled = true; $("estado").textContent = "Consultando…"; $("resultado").replaceChildren();
+    const cuerpo = Object.fromEntries(ui.formulario.map((c) => [c.campo, c.tipo === "number" ? Number($("campo-" + c.campo).value) : $("campo-" + c.campo).value]));
+    try {
+      const res = await fetch(endpoint, { method: ui.metodo || "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(cuerpo) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(`${res.status}: ${res.status === 429 ? "demasiadas solicitudes" : (data.detail?.[0] ? data.detail.map((d) => `${d.loc?.at(-1)}: ${d.msg}`).join("; ") : "") || data.detail || data.message || res.statusText}`);
+      mostrar(ui, data);
+    } catch (err) {
+      $("resultado").replaceChildren(el("div", { className: "error" }, "Error " + err.message));
+    } finally { $("enviar").disabled = false; $("estado").textContent = ""; }
+  });
+}
+iniciar();
+</script>
+</body>
+</html>
