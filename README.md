@@ -57,36 +57,71 @@ Eso es todo. Con `LLM_PROVIDER=mock` el flujo corre completo con respuestas fija
 Si la confianza de identidad baja de 0.8, hay riesgo alto o algo no cuadra, la decisión pasa a
 `revision_humana` con el motivo, y el cliente recibe un mensaje neutro.
 
+## Arquitectura
+
+```mermaid
+flowchart LR
+    UI[UI] -- "POST /api/v1/onboarding/start" --> O
+
+    subgraph L["Lambda · idealmente Fargate"]
+        subgraph AG["🤖 Agente de onboarding · LangGraph"]
+            direction TB
+            O{Orquestador} --> A1[Identidad]
+            O --> A2[Riesgo]
+            O --> A3[Políticas]
+            O --> A4[Respuesta]
+        end
+    end
+
+    A4 -- "decisión, evidencia y mensaje" --> UI
+    O --> DB[(DynamoDB)]
+    A3 -.-> Q[("Qdrant con Hybrid Search<br/>idealmente")]
+```
+
+```jsonc
+// entrada
+{"prospect_name": "Juan Perez", "document_id": "1712345678", "product": "cuenta_ahorros"}
+// salida, entre otros campos
+{"verified": true, "confidence": 0.0-1.0}
+{"risk_level": "low/medium/high", "matches": []}
+{"policies": []}
+{"answer": "..."}
+```
+
+Hoy las políticas se buscan con BM25 en memoria; Qdrant con búsqueda híbrida es el reemplazo
+para producción, porque BM25 no entiende sinónimos.
+
 ## Cómo funciona
 
 Un orquestador en LangGraph recorre los agentes en orden fijo, a cada uno le pasa solo lo que
 necesita y aplica las reglas de escalamiento. **El código decide; el LLM solo elige qué políticas
 aplican y redacta el mensaje.**
 
-### Qué es un agente aquí
-
-Un agente es un nodo del grafo de LangGraph con una sola responsabilidad. Cumple tres reglas:
-
-- **Tools propias:** solo puede usar las suyas (`PERMISOS` en `app/agent/tools.py`), y cualquier
-  otra se rechaza y queda registrada como error.
-- **Contexto mínimo:** lee del estado compartido solo lo que su tarea necesita y devuelve su
-  resultado a ese estado. Los agentes no se llaman entre sí; el orquestador decide quién sigue.
-- **LLM solo con juicio:** `identidad` y `riesgo` ejecutan su tool y aplican reglas sin LLM.
-  `politicas` y `respuesta` usan Claude con salida estructurada, y esa salida se valida antes de
-  usarse.
-
-El orquestador no es un LLM: es código que fija el orden, así ningún control se puede saltar.
-
 ```mermaid
-flowchart LR
-    API[POST /onboarding/start] --> O{Orquestador}
-    O --> I[Identidad] --> T1([verify_identity])
-    O --> R[Riesgo] --> T2([check_risk_lists])
-    O --> P[Políticas] --> T3([search_policies]) & T4([prepare_documentation])
-    P --> L1[[LLM: elige políticas]]
-    O --> M[Respuesta] --> L2[[LLM: mensaje al cliente]]
-    O --> D{{Decisión en código}}
-    D --> DB[(DynamoDB)]
+flowchart TB
+    API[POST /onboarding/start] --> O{"Orquestador<br/>(código)"}
+
+    %% Declarados al revés: Mermaid los ubica de derecha a izquierda
+    subgraph AM["🤖 Agente respuesta"]
+        L2[[LLM: mensaje al cliente]]
+    end
+    subgraph AP["🤖 Agente políticas"]
+        T3([search_policies])
+        T4([prepare_documentation])
+        L1[[LLM: elige políticas]]
+    end
+    subgraph AR["🤖 Agente riesgo"]
+        T2([check_risk_lists])
+    end
+    subgraph AI["🤖 Agente identidad"]
+        T1([verify_identity])
+    end
+
+    O -- "1" --> AI
+    O -- "2" --> AR
+    O -- "3" --> AP
+    O -- "4" --> AM
+    O --> D{{Decisión en código}} --> DB[(DynamoDB)]
 ```
 
 | Agente | Tools permitidas | LLM | Produce |
@@ -179,17 +214,6 @@ make eval REPETICIONES=3      # consistencia entre corridas
 Detalle, casos que fallan y su causa en [docs/evaluacion.md](./docs/evaluacion.md).
 
 ## Despliegue en AWS
-
-```mermaid
-flowchart LR
-    U[Analista] --> S3[Front en S3]
-    S3 --> GW[API Gateway]
-    GW --> L[Lambda<br/>FastAPI + LangGraph]
-    L --> DB[(DynamoDB)]
-    L --> SM[Secrets Manager]
-    L --> C[Claude API]
-    L --> LF[Langfuse]
-```
 
 ```bash
 make deploy                   # build de la Lambda, CDK y carga de secretos desde .env
